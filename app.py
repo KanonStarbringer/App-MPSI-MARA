@@ -1,7 +1,6 @@
 import streamlit as st
 import pandas as pd
 import numpy as np
-import scipy
 from scipy.integrate import quad
 from reportlab.lib.pagesizes import letter, A4
 from reportlab.pdfgen import canvas
@@ -184,110 +183,129 @@ def generate_pdf_report(payoff_matrix, normalized_matrix, variables_df, new_matr
     doc.build(elements)
 
 def main():
-    st.title("MPSI-MARA Hybrid Method MCDA Calculator")
+    menu = ["Home", "Method", "About"]
 
-    payoff_matrix, criterion_types = get_payoff_matrix()
-    st.subheader("Payoff Matrix:")
-    st.dataframe(payoff_matrix)
+    choice = st.sidebar.selectbox("Menu", menu)
 
-    normalized_matrix = normalize_matrix(payoff_matrix, criterion_types)
-    st.subheader("Normalized Matrix:")
-    st.dataframe(normalized_matrix)
+    if choice == "Home":
+        st.subheader("Home")
+        st.write("This is a MCDA Calculator for the MPSI-MARA Method")
+        st.write("To use this Calculator, is quite intuitive:")
+        st.write("First, define how many alternatives and criteria you'll measure")
+        st.write("Then, define if the criteria are of benefit (more is better)")
+        st.write("Or, if the criteria are of cost (if less is better)")
 
-    variables_df = calculate_variables(normalized_matrix)
-    st.subheader("Calculated Variables:")
-    st.dataframe(variables_df)
+    elif choice == "Method":
+        st.title("MPSI-MARA Hybrid Method MCDA Calculator")
 
-    new_matrix = calculate_new_matrix(normalized_matrix, variables_df['w'])
-    st.subheader("New Matrix:")
-    st.dataframe(new_matrix)
+        payoff_matrix, criterion_types = get_payoff_matrix()
+        st.subheader("Payoff Matrix:")
+        st.dataframe(payoff_matrix)
 
-    set_Sj = create_set_Sj(new_matrix)
-    set_Smax, set_Smin = split_sets_Smax_Smin(criterion_types, set_Sj)
+        normalized_matrix = normalize_matrix(payoff_matrix, criterion_types)
+        st.subheader("Normalized Matrix:")
+        st.dataframe(normalized_matrix)
 
-    st.subheader("Set S_j:")
-    st.write(set_Sj)
-    st.subheader("Set S_max:")
-    st.write(set_Smax)
-    st.subheader("Set S_min:")
-    st.write(set_Smin)
+        variables_df = calculate_variables(normalized_matrix)
+        st.subheader("Calculated Variables:")
+        st.dataframe(variables_df)
 
-    set_Tmax, set_Tmin = create_set_Tmax_Tmin(new_matrix, criterion_types)
+        new_matrix = calculate_new_matrix(normalized_matrix, variables_df['w'])
+        st.subheader("New Matrix:")
+        st.dataframe(new_matrix)
 
-    st.subheader("Set T_i^max:")
-    st.write(set_Tmax)
-    st.subheader("Set T_i^min:")
-    st.write(set_Tmin)
+        set_Sj = create_set_Sj(new_matrix)
+        set_Smax, set_Smin = split_sets_Smax_Smin(criterion_types, set_Sj)
 
-    T_ik, T_il = calculate_T_ik_T_il(set_Tmax, set_Tmin)
+        st.subheader("Set S_j:")
+        st.write(set_Sj)
+        st.subheader("Set S_max:")
+        st.write(set_Smax)
+        st.subheader("Set S_min:")
+        st.write(set_Smin)
 
-    st.subheader("T_ik for each alternative:")
-    st.write(T_ik)
-    st.subheader("T_il for each alternative:")
-    st.write(T_il)
+        set_Tmax, set_Tmin = create_set_Tmax_Tmin(new_matrix, criterion_types)
 
-    # Calculate the optimal alternative function
-    Sk = sum(set_Smax.values())
-    st.subheader("Sk")
-    st.write(Sk)
-    Sl = sum(set_Smin.values())
-    st.subheader("Sl")
-    st.write(Sl)
-    f_opt = optimal_alternative_function(Sk, Sl)
+        st.subheader("Set T_i^max:")
+        st.write(set_Tmax)
+        st.subheader("Set T_i^min:")
+        st.write(set_Tmin)
 
-    st.subheader("Optimal Alternative Function:")
-    st.write(f"f_opt(x) = ({Sl} - {Sk}) * x + {Sk}")
+        T_ik, T_il = calculate_T_ik_T_il(set_Tmax, set_Tmin)
+
+        st.subheader("T_ik for each alternative:")
+        st.write(T_ik)
+        st.subheader("T_il for each alternative:")
+        st.write(T_il)
+
+        # Calculate the optimal alternative function
+        Sk = sum(set_Smax.values())
+        st.subheader("Sk")
+        st.write(Sk)
+        Sl = sum(set_Smin.values())
+        st.subheader("Sl")
+        st.write(Sl)
+        f_opt = optimal_alternative_function(Sk, Sl)
+
+        st.subheader("Optimal Alternative Function:")
+        st.write(f"f_opt(x) = ({Sl} - {Sk}) * x + {Sk}")
 
 
-    # Calculate the alternative functions for each alternative
-    alternative_functions = {}
-    for alternative in T_ik.keys():
-        f_i = alternative_function(T_ik[alternative], T_il[alternative])
-        alternative_functions[alternative] = f_i
+        # Calculate the alternative functions for each alternative
+        alternative_functions = {}
+        for alternative in T_ik.keys():
+            f_i = alternative_function(T_ik[alternative], T_il[alternative])
+            alternative_functions[alternative] = f_i
 
-    st.subheader("Alternative Functions:")
-    for alternative, f_i in alternative_functions.items():
-        st.write(f"f_{alternative}(x) = ({T_il[alternative]} - {T_ik[alternative]}) * x + {T_ik[alternative]}")
+        st.subheader("Alternative Functions:")
+        for alternative, f_i in alternative_functions.items():
+            st.write(f"f_{alternative}(x) = ({T_il[alternative]} - {T_ik[alternative]}) * x + {T_ik[alternative]}")
 
-   # Calculate the definite integral of the Optimal Alternative Function
-    def_opt_integral = calculate_definite_integral(f_opt, 0, 1)
-    st.subheader("Definite Integral of Optimal Alternative Function:")
-    st.write(def_opt_integral)
+    # Calculate the definite integral of the Optimal Alternative Function
+        def_opt_integral = calculate_definite_integral(f_opt, 0, 1)
+        st.subheader("Definite Integral of Optimal Alternative Function:")
+        st.write(def_opt_integral)
 
-    # Calculate the definite integrals of the Alternative Functions for each alternative
-    st.subheader("Definite Integrals of Alternative Functions:")
-    def_integrals = {}  # Dictionary to store the definite integrals for each alternative
-    for alternative, f_i in alternative_functions.items():
-        def_i_integral = calculate_definite_integral(f_i, 0, 1)
-        st.write(f"Definite Integral of f_{alternative}(x):")
-        st.write(def_i_integral)
-        def_integrals[alternative] = def_i_integral
+        # Calculate the definite integrals of the Alternative Functions for each alternative
+        st.subheader("Definite Integrals of Alternative Functions:")
+        def_integrals = {}  # Dictionary to store the definite integrals for each alternative
+        for alternative, f_i in alternative_functions.items():
+            def_i_integral = calculate_definite_integral(f_i, 0, 1)
+            st.write(f"Definite Integral of f_{alternative}(x):")
+            st.write(def_i_integral)
+            def_integrals[alternative] = def_i_integral
 
-    # Calculate the differences and rank the alternatives
-    ranked_alternatives = sorted(def_integrals, key=lambda alternative: def_opt_integral - def_integrals[alternative])
+        # Calculate the differences and rank the alternatives
+        ranked_alternatives = sorted(def_integrals, key=lambda alternative: def_opt_integral - def_integrals[alternative])
 
-    # Display the ranking
-    st.subheader("Ranking of Alternatives:")
-    for rank, alternative in enumerate(ranked_alternatives, start=1):
-        st.write(f"Rank {rank}: Alternative {alternative}")
-    ranked_alternatives = []
-    for alternative, def_i_integral in def_integrals.items():
-        difference = def_opt_integral - def_i_integral
-        ranked_alternatives.append((alternative, difference))
+        # Display the ranking
+        st.subheader("Ranking of Alternatives:")
+        for rank, alternative in enumerate(ranked_alternatives, start=1):
+            st.write(f"Rank {rank}: Alternative {alternative}")
+        ranked_alternatives = []
+        for alternative, def_i_integral in def_integrals.items():
+            difference = def_opt_integral - def_i_integral
+            ranked_alternatives.append((alternative, difference))
 
-    ranked_alternatives = sorted(ranked_alternatives, key=lambda x: x[1])
+        ranked_alternatives = sorted(ranked_alternatives, key=lambda x: x[1])
 
-    # Display the ranking with difference values
-    st.subheader("Ranking of Alternatives:")
-    for rank, (alternative, difference) in enumerate(ranked_alternatives, start=1):
-        st.write(f"Rank {rank}: Alternative {alternative}, Difference: {difference:.4f}")
+        # Display the ranking with difference values
+        st.subheader("Ranking of Alternatives:")
+        for rank, (alternative, difference) in enumerate(ranked_alternatives, start=1):
+            st.write(f"Rank {rank}: Alternative {alternative}, Difference: {difference:.4f}")
 
-    if st.button("Generate PDF"):
-        generate_pdf_report(payoff_matrix, normalized_matrix, variables_df, new_matrix,
-                            set_Sj, set_Smax, set_Smin, set_Tmax, set_Tmin, T_ik, T_il,
-                            def_opt_integral, alternative_functions, def_integrals, ranked_alternatives,
-                            Sk, Sl)  # Pass Sk and Sl as arguments here
-        st.success("PDF report generated successfully!")
+        if st.button("Generate PDF"):
+            generate_pdf_report(payoff_matrix, normalized_matrix, variables_df, new_matrix,
+                                set_Sj, set_Smax, set_Smin, set_Tmax, set_Tmin, T_ik, T_il,
+                                def_opt_integral, alternative_functions, def_integrals, ranked_alternatives,
+                                Sk, Sl)  # Pass Sk and Sl as arguments here
+            st.success("PDF report generated successfully!")
+
+    else:
+        st.subheader("About")
+        st.write("The Hybrid MCDA Method MPSI-MARA is method created by Gligoric et al. [2022]")
+        st.write("Original Article")
+        st.write('https://www.mdpi.com/2079-8954/10/6/248')
 
 if __name__ == "__main__":
     main()
