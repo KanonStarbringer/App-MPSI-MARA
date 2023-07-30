@@ -1,6 +1,7 @@
 import streamlit as st
 import pandas as pd
 import numpy as np
+import scipy
 from scipy.integrate import quad
 from reportlab.lib.pagesizes import letter, A4
 from reportlab.pdfgen import canvas
