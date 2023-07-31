@@ -1,6 +1,7 @@
 import streamlit as st
 import pandas as pd
 import numpy as np
+import io
 from scipy.integrate import quad
 from reportlab.lib.pagesizes import letter, A4
 from reportlab.pdfgen import canvas
@@ -181,6 +182,17 @@ def generate_pdf_report(payoff_matrix, normalized_matrix, variables_df, new_matr
 
     # Build the PDF document with the elements
     doc.build(elements)
+    
+    # Save the generated PDF in a BytesIO object
+    buffer = io.BytesIO()
+    doc = SimpleDocTemplate(buffer, pagesize=A4)
+    doc.build(elements)
+
+    # Reset the buffer position to the beginning
+    buffer.seek(0)
+
+    # Offer the PDF file for download with a download button
+    st.download_button("Download PDF Report", data=buffer, file_name="mcda_report.pdf", mime="application/pdf")
 
 def main():
     menu = ["Home", "Method", "About"]
@@ -190,11 +202,11 @@ def main():
     if choice == "Home":
         st.header("Home")
         st.subheader("MPSI-MARA Calculator")
-        st.write("This is a MCDA Calculator for the MPSI-MARA Method.")
+        st.write("This is a MCDA Calculator for the MPSI-MARA Method")
         st.write("To use this Calculator, is quite intuitive:")
-        st.write("First, define how many alternatives and criteria you'll measure.")
-        st.write("Then, define if the criteria are of benefit (more is better).")
-        st.write("Or, if the criteria are of cost (if less is better).")
+        st.write("First, define how many alternatives and criteria you'll measure")
+        st.write("Then, define if the criteria are of benefit (more is better)")
+        st.write("Or, if the criteria are of cost (if less is better)")
 
     elif choice == "Method":
         st.title("MPSI-MARA Hybrid Method MCDA Calculator")
@@ -307,6 +319,11 @@ def main():
         st.write("The Hybrid MCDA Method MPSI-MARA is method created by Gligoric et al. [2022]")
         st.write("Original Article")
         st.write('https://www.mdpi.com/2079-8954/10/6/248')
+    
+    # Add logo to the sidebar
+    logo_path = "/Users/TullioPires/Desktop/Captura de Tela 2023-07-31 às 10.39.25.png"  # Replace with the actual path to your logo image file
+    st.sidebar.image(logo_path, use_column_width=True)
+
 
 if __name__ == "__main__":
     main()
