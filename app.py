@@ -202,11 +202,11 @@ def main():
     if choice == "Home":
         st.header("Home")
         st.subheader("MPSI-MARA Calculator")
-        st.write("This is a MCDA Calculator for the MPSI-MARA Method")
+        st.write("This is a MCDA Calculator for the MPSI-MARA Method.")
         st.write("To use this Calculator, is quite intuitive:")
-        st.write("First, define how many alternatives and criteria you'll measure")
-        st.write("Then, define if the criteria are of benefit (more is better)")
-        st.write("Or, if the criteria are of cost (if less is better)")
+        st.write("First, define how many alternatives and criteria you'll measure.")
+        st.write("Then, define if the criteria are of benefit (more is better).")
+        st.write("Or, if the criteria are of cost (if less is better).")
 
     elif choice == "Method":
         st.title("MPSI-MARA Hybrid Method MCDA Calculator")
