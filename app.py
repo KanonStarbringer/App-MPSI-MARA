@@ -321,7 +321,7 @@ def main():
         st.write('https://www.mdpi.com/2079-8954/10/6/248')
     
     # Add logo to the sidebar
-    logo_path = "https://imgur.com/g7fITf4"  # Replace with the actual path to your logo image file
+    logo_path = "https://i.imgur.com/g7fITf4.png"  # Replace with the actual path to your logo image file
     st.sidebar.image(logo_path, use_column_width=True)
 
 
