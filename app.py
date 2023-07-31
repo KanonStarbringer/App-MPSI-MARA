@@ -133,6 +133,9 @@ def generate_pdf_report(payoff_matrix, normalized_matrix, variables_df, new_matr
                         def_opt_integral, alternative_functions, def_integrals, ranked_alternatives,
                         Sk, Sl):
 
+    # Create a PDF document in memory using BytesIO
+    buffer = io.BytesIO()
+    
     # Create a new PDF document using SimpleDocTemplate with A4 paper size
     doc = SimpleDocTemplate("mcda_report.pdf", pagesize=A4)
 
@@ -180,9 +183,6 @@ def generate_pdf_report(payoff_matrix, normalized_matrix, variables_df, new_matr
     for rank, (alternative, difference) in enumerate(ranked_alternatives, start=1):
         elements.append(Paragraph(f"Rank {rank}: Alternative {alternative}, Difference: {difference:.4f}", styles['Normal']))
 
-    # Build the PDF document with the elements
-    doc.build(elements)
-    
     # Save the generated PDF in a BytesIO object
     buffer = io.BytesIO()
     doc = SimpleDocTemplate(buffer, pagesize=A4)
@@ -191,8 +191,10 @@ def generate_pdf_report(payoff_matrix, normalized_matrix, variables_df, new_matr
     # Reset the buffer position to the beginning
     buffer.seek(0)
 
-    # Offer the PDF file for download with a download button
-    st.download_button("Download PDF Report", data=buffer, file_name="mcda_report.pdf", mime="application/pdf")
+    # # Offer the PDF file for download with a download button
+    # st.download_button("Download PDF Report", data=buffer, file_name="mcda_report.pdf", mime="application/pdf")
+
+    return buffer
 
 def main():
     menu = ["Home", "Method", "About"]
@@ -202,7 +204,7 @@ def main():
     if choice == "Home":
         st.header("Home")
         st.subheader("MPSI-MARA Calculator")
-        st.write("This is a MCDA Calculator for the MPSI-MARA Method.")
+        st.write("This is a MCDA Calculator for the MPSI-MARA Method")
         st.write("To use this Calculator, is quite intuitive:")
         st.write("First, define how many alternatives and criteria you'll measure.")
         st.write("Then, define if the criteria are of benefit (more is better).")
@@ -308,10 +310,13 @@ def main():
             st.write(f"Rank {rank}: Alternative {alternative}, Difference: {difference:.4f}")
 
         if st.button("Generate PDF"):
-            generate_pdf_report(payoff_matrix, normalized_matrix, variables_df, new_matrix,
-                                set_Sj, set_Smax, set_Smin, set_Tmax, set_Tmin, T_ik, T_il,
-                                def_opt_integral, alternative_functions, def_integrals, ranked_alternatives,
-                                Sk, Sl)  # Pass Sk and Sl as arguments here
+            pdf_file = generate_pdf_report(payoff_matrix, normalized_matrix, variables_df, new_matrix,
+                                    set_Sj, set_Smax, set_Smin, set_Tmax, set_Tmin, T_ik, T_il,
+                                    def_opt_integral, alternative_functions, def_integrals, ranked_alternatives,
+                                    Sk, Sl)  # Pass Sk and Sl as arguments here
+            #st.success("PDF report generated successfully!")
+             # Provide the PDF for download
+            st.download_button("Download PDF", data=pdf_file, file_name="mcda_report.pdf", mime="application/pdf")
             st.success("PDF report generated successfully!")
 
     else:
@@ -321,7 +326,7 @@ def main():
         st.write('https://www.mdpi.com/2079-8954/10/6/248')
     
     # Add logo to the sidebar
-    logo_path = "https://i.imgur.com/g7fITf4.png"  # Replace with the actual path to your logo image file
+    logo_path = "/Users/TullioPires/Desktop/Captura de Tela 2023-07-31 às 10.39.25.png"  # Replace with the actual path to your logo image file
     st.sidebar.image(logo_path, use_column_width=True)
 
 
