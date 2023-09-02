@@ -1,6 +1,7 @@
 import streamlit as st
 import pandas as pd
 import numpy as np
+from st_aggrid import AgGrid
 import io
 from scipy.integrate import quad
 from reportlab.lib.pagesizes import letter, A4
@@ -19,6 +20,12 @@ def get_payoff_matrix():
     data = [[f'A{j+1}'] + [0 for _ in range(num_criteria)] for j in range(num_alternatives)]
     payoff_matrix = pd.DataFrame(data, columns=columns)
 
+    # Create an ag-Grid component
+    grid_response = AgGrid(payoff_matrix, editable=True, index=False, fit_columns_on_grid_load=True)
+
+    # Get the edited DataFrame from the AgGrid response
+    edited_matrix = grid_response['data']
+
     # Get the type of each criterion (Benefit or Cost)
     criterion_types = []
     for i in range(num_criteria):
@@ -26,16 +33,7 @@ def get_payoff_matrix():
         criterion_type = st.selectbox(f"{criterion_label} - Benefit or Cost?", ["Benefit", "Cost"])
         criterion_types.append(criterion_type)
 
-    # Input the values for the payoff matrix using DataFrame
-    st.subheader("Enter the values for the payoff matrix:")
-    input_matrix = pd.DataFrame(data, columns=columns)
-    for i in range(num_alternatives):
-        for j in range(num_criteria):
-            input_matrix.iloc[i, j + 1] = st.number_input(f"{columns[j+1]} - {data[i][0]}", value=0.0, step=0.01)
-
-    payoff_matrix.iloc[:, 1:] = input_matrix.iloc[:, 1:]
-
-    return payoff_matrix, criterion_types
+    return edited_matrix, criterion_types
 
 def normalize_matrix(df, criterion_types):
     normalized_df = df.copy()
