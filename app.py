@@ -54,6 +54,14 @@ def calculate_p_ij(normalized_df, v_values):
     p_values = ((normalized_df.iloc[:, 1:] - v_values) ** 2).sum()
     return p_values
 
+def calculate_phi_j(p_values):
+    phi_values = 1 - p_values
+    return phi_values
+
+def calculate_psi_j(phi_values):
+    psi_values = phi_values / phi_values.sum()
+    return psi_values
+
 def calculate_w_ij(p_values):
     w_values = p_values / p_values.sum()
     return w_values
@@ -64,6 +72,14 @@ def calculate_variables(normalized_df):
     w_values = calculate_w_ij(p_values)
     variables_df = pd.DataFrame({'v': v_values, 'p': p_values, 'w': w_values})
     return variables_df
+
+def calculate_PSI_variables(normalized_df):
+    v_values = calculate_v_ij(normalized_df)
+    p_values = calculate_p_ij(normalized_df, v_values)
+    phi_values = calculate_phi_j(p_values)
+    psi_values = calculate_psi_j(phi_values)
+    PSI_variables_df = pd.DataFrame({'phi': phi_values, 'psi': psi_values})
+    return PSI_variables_df
 
 def calculate_new_matrix(normalized_df, w_values):
     new_matrix = normalized_df.copy()
@@ -195,20 +211,20 @@ def generate_pdf_report(payoff_matrix, normalized_matrix, variables_df, new_matr
     return buffer
 
 def main():
-    menu = ["Home", "Method", "About"]
+    menu = ["Home", "PSI" ,"MPSI-MARA", "About"]
 
     choice = st.sidebar.selectbox("Menu", menu)
 
     if choice == "Home":
         st.header("Home")
-        st.subheader("MPSI-MARA Calculator")
-        st.write("This is a MCDA Calculator for the MPSI-MARA Method")
+        st.subheader("PSI and MPSI-MARA Calculator")
+        st.write("This is a MCDA Calculator for the PSI and MPSI-MARA Methods")
         st.write("To use this Calculator, is quite intuitive:")
         st.write("First, define how many alternatives and criteria you'll measure.")
         st.write("Then, define if the criteria are of benefit (more is better).")
         st.write("Or, if the criteria are of cost (if less is better).")
 
-    elif choice == "Method":
+    elif choice == "MPSI-MARA":
         st.title("MPSI-MARA Hybrid Method MCDA Calculator")
 
         payoff_matrix, criterion_types = get_payoff_matrix()
@@ -316,12 +332,31 @@ def main():
              # Provide the PDF for download
             st.download_button("Download PDF", data=pdf_file, file_name="mcda_report.pdf", mime="application/pdf")
             st.success("PDF report generated successfully!")
+    
+    elif choice == "PSI":
+        st.title("PSI Calculator")
+
+        payoff_matrix, criterion_types = get_payoff_matrix()
+        st.subheader("Payoff Matrix:")
+        st.dataframe(payoff_matrix)
+
+        normalized_matrix = normalize_matrix(payoff_matrix, criterion_types)
+        st.subheader("Normalized Matrix:")
+        st.dataframe(normalized_matrix)
+
+        PSI_variables_df = calculate_PSI_variables(normalized_matrix)
+        st.subheader("Calculated Variables:")
+        st.dataframe(PSI_variables_df) 
 
     else:
         st.subheader("About")
-        st.write("The Hybrid MCDA Method MPSI-MARA is method created by Gligoric et al. [2022]")
-        st.write("Original Article")
+        st.write("The PSI Method is a method created by Maniya et al. [2010]")
+        st.write("The Hybrid MCDA Method MPSI-MARA is a method created by Gligoric et al. [2022]")
+        st.write("Both Articles")
+        st.write("https://www.sciencedirect.com/science/article/abs/pii/S0261306909006396?via%3Dihub")
         st.write('https://www.mdpi.com/2079-8954/10/6/248')
+        st.write("To cite this work:")
+        st.write("Araujo, Tullio Mozart Pires de Castro; Gomes, Carlos Francisco Simões.; Santos, Marcos dos. PSI and MPSI-MARA For Decision Making (v1), Universidade Federal Fluminense, Niterói, Rio de Janeiro, 2023.")
     
     # Add logo to the sidebar
     logo_path = "https://i.imgur.com/g7fITf4.png"  # Replace with the actual path to your logo image file
