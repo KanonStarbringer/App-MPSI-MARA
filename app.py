@@ -10,6 +10,13 @@ from reportlab.lib import colors
 from reportlab.lib.styles import getSampleStyleSheet
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Table, TableStyle
 
+# Set the app title and description
+st.set_page_config(
+    page_title="Your App's Title",
+    page_icon=":chart_with_upwards_trend:",  # You can customize the icon
+    layout="wide",  # You can set the layout (wide or center)
+    initial_sidebar_state="auto"  # You can set the initial sidebar state
+)
 
 def get_payoff_matrix():
     num_alternatives = st.number_input("Enter the number of alternatives:", min_value=2, value=2, step=1)
