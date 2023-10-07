@@ -9,15 +9,15 @@ from reportlab.pdfgen import canvas
 from reportlab.lib import colors
 from reportlab.lib.styles import getSampleStyleSheet
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Table, TableStyle
+import plotly.express as px
 
 # Set the app title and description
 st.set_page_config(
-    page_title="PSI and MPSI-MARA Calculator",
+    page_title="PSI and MPSI-MARA calculator",
     #page_icon=":chart_with_upwards_trend:",  # You can customize the icon
     #layout="wide",  # You can set the layout (wide or center)
     initial_sidebar_state="auto"  # You can set the initial sidebar state
 )
-
 def get_payoff_matrix():
     num_alternatives = st.number_input("Enter the number of alternatives:", min_value=2, value=2, step=1)
     num_criteria = st.number_input("Enter the number of criteria:", min_value=1, value=1, step=1)
@@ -353,7 +353,26 @@ def main():
 
         PSI_variables_df = calculate_PSI_variables(normalized_matrix)
         st.subheader("Calculated Variables:")
-        st.dataframe(PSI_variables_df) 
+        st.dataframe(PSI_variables_df)
+
+        # Plot the PSI weights using Plotly bar chart
+        fig = px.bar(
+            PSI_variables_df,
+            x=PSI_variables_df.index,  # Assuming your criteria have meaningful names
+            y='psi',
+            labels={'index': 'Criteria', 'psi': 'PSI Weight'},
+            title='PSI Weights for Criteria',
+        )
+        
+        # Customize the chart layout
+        fig.update_layout(
+            xaxis_title_text='Criteria',
+            yaxis_title_text='PSI Weight',
+            xaxis_tickangle=-45,
+        )
+
+        # Show the Plotly chart in Streamlit
+        st.plotly_chart(fig) 
 
     else:
         st.subheader("About")
