@@ -14,7 +14,7 @@ from reportlab.platypus import SimpleDocTemplate, Paragraph, Table, TableStyle
 st.set_page_config(
     page_title="PSI and MPSI-MARA Calculator",
     #page_icon=":chart_with_upwards_trend:",  # You can customize the icon
-    layout="center",  # You can set the layout (wide or center)
+    layout="wide",  # You can set the layout (wide or center)
     initial_sidebar_state="auto"  # You can set the initial sidebar state
 )
 
