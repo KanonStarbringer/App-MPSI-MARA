@@ -1,6 +1,8 @@
 import streamlit as st
 import pandas as pd
 import numpy as np
+import xlsxwriter
+import openpyxl
 from st_aggrid import AgGrid
 import io
 from scipy.integrate import quad
@@ -18,6 +20,73 @@ st.set_page_config(
     #layout="wide",  # You can set the layout (wide or center)
     initial_sidebar_state="auto"  # You can set the initial sidebar state
 )
+
+def download_template():
+    # Adjust based on the number of alternatives and criteria
+    num_alternatives = 9  # You can set a default number or ask the user for input
+    num_criteria = 17  # Same for criteria
+
+    # Generate a list of alternative names
+    alternatives = [f'A{i+1}' for i in range(num_alternatives)]
+
+    # Create data for the template: "C1", "C2", ..., in the first row, and "Max/Min" in the second row
+    criteria_labels = [f'C{i+1}' for i in range(num_criteria)]
+    benefit_cost_row = ['Max' if i < 10 else 'Min' for i in range(num_criteria)]  # First 10 are Max, rest are Min
+
+    # Prepare data for the DataFrame
+    data = {f'C{i+1}': [''] * num_alternatives for i in range(num_criteria)}
+    df = pd.DataFrame(data)
+
+    # Set the first row for the "C1", "C2", ..., and second row for the "Max/Min"
+    df.loc[-2] = criteria_labels
+    df.loc[-1] = benefit_cost_row
+    df.index = df.index + 2  # Shifting the index to make space for the new rows
+    df = df.sort_index()
+
+    # Add the "A/C" column for alternatives
+    df.insert(0, 'A/C', ['A/C'] + [''] + alternatives)
+
+    # Convert the DataFrame to an Excel file
+    excel_buffer = io.BytesIO()
+    with pd.ExcelWriter(excel_buffer, engine='xlsxwriter') as writer:
+        df.to_excel(writer, index=False, header=False)
+
+    # Provide a download link for the template
+    st.download_button(
+        label="Download Excel template",
+        data=excel_buffer,
+        file_name="MEREC_SPOTIS_template.xlsx",
+        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    )
+
+# Function to read Excel file
+def read_excel(uploaded_file):
+    df = pd.read_excel(uploaded_file)
+
+    # Show the first two rows for debugging purposes
+    #st.write("First Row (Headers):")
+    #st.write(df.columns.tolist())
+    
+    #st.write("Second Row (Criterion Types):")
+    #st.write(df.iloc[0, 1:].tolist())
+
+    # Extract the "Max" or "Min" labels from the second row (the row defining if it's Benefit or Cost)
+    criterion_types = df.iloc[0, 1:].apply(lambda x: 'Benefit' if str(x).strip().lower() == 'max' else 'Cost').tolist()
+
+    # Remove the second row (the row with "Max" or "Min" labels) from the DataFrame
+    df = df.drop(0).reset_index(drop=True)
+
+    # Rename columns to C1, C2, etc. and keep the first column as 'A/C'
+    num_criteria = len(df.columns) - 1
+    columns = ['A/C'] + [f'C{i+1}' for i in range(num_criteria)]
+    df.columns = columns
+
+    # Convert all the criteria columns (except the 'A/C' column) to numeric values
+    for col in df.columns[1:]:
+        df[col] = pd.to_numeric(df[col], errors='coerce')
+    
+    return df, criterion_types, df.shape[0], num_criteria
+
 def get_payoff_matrix():
     num_alternatives = st.number_input("Enter the number of alternatives:", min_value=2, value=2, step=1)
     num_criteria = st.number_input("Enter the number of criteria:", min_value=1, value=1, step=1)
@@ -218,161 +287,167 @@ def generate_pdf_report(payoff_matrix, normalized_matrix, variables_df, new_matr
     return buffer
 
 def main():
-    menu = ["Home", "PSI" ,"MPSI-MARA", "About"]
+    menu = ["Home", "PSI", "MPSI-MARA", "About"]
 
     choice = st.sidebar.selectbox("Menu", menu)
 
     if choice == "Home":
         st.header("Home")
         st.subheader("PSI and MPSI-MARA Calculator")
-        st.write("This is a MCDA Calculator for the PSI and MPSI-MARA Methods")
-        st.write("To use this Calculator, is quite intuitive:")
-        st.write("First, define how many alternatives and criteria you'll measure.")
-        st.write("Then, define if the criteria are of benefit (more is better).")
-        st.write("Or, if the criteria are of cost (if less is better).")
+        st.write("This is a MCDA Calculator for the PSI and MPSI-MARA Methods.")
+        st.write("To use this Calculator:")
+        st.write("1. Define how many alternatives and criteria you'll measure.")
+        st.write("2. Define if the criteria are of benefit (more is better) or cost (less is better).")
 
     elif choice == "MPSI-MARA":
         st.title("MPSI-MARA Hybrid Method MCDA Calculator")
 
-        payoff_matrix, criterion_types = get_payoff_matrix()
-        st.subheader("Payoff Matrix:")
-        st.dataframe(payoff_matrix)
+        # Input Method
+        data_input_method = st.selectbox("Select Data Input Method:", ["Manual Input", "Upload Excel"])
 
-        normalized_matrix = normalize_matrix(payoff_matrix, criterion_types)
-        st.subheader("Normalized Matrix:")
-        st.dataframe(normalized_matrix)
+        if data_input_method == "Upload Excel":
+            st.write("Download the template to fill out the data:")
+            download_template()
+            uploaded_file = st.file_uploader("Upload Excel File", type=["xlsx"])
 
-        variables_df = calculate_variables(normalized_matrix)
-        st.subheader("Calculated Variables:")
-        st.dataframe(variables_df)
+            if uploaded_file:
+                payoff_matrix, criterion_types, _, num_criteria = read_excel(uploaded_file)
+                st.subheader("Payoff Matrix from Uploaded Excel:")
+                st.dataframe(payoff_matrix)
 
-        new_matrix = calculate_new_matrix(normalized_matrix, variables_df['w'])
-        st.subheader("New Matrix:")
-        st.dataframe(new_matrix)
+        elif data_input_method == "Manual Input":
+            payoff_matrix, criterion_types, _, num_criteria = get_payoff_matrix()
+            st.subheader("Payoff Matrix:")
+            st.dataframe(payoff_matrix)
 
-        set_Sj = create_set_Sj(new_matrix)
-        set_Smax, set_Smin = split_sets_Smax_Smin(criterion_types, set_Sj)
+        if 'payoff_matrix' in locals():
+            normalized_matrix = normalize_matrix(payoff_matrix, criterion_types)
+            st.subheader("Normalized Matrix:")
+            st.dataframe(normalized_matrix)
 
-        st.subheader("Set S_j:")
-        st.write(set_Sj)
-        st.subheader("Set S_max:")
-        st.write(set_Smax)
-        st.subheader("Set S_min:")
-        st.write(set_Smin)
+            # Further calculations for MPSI-MARA
+            variables_df = calculate_variables(normalized_matrix)
+            st.subheader("Calculated Variables:")
+            st.dataframe(variables_df)
 
-        set_Tmax, set_Tmin = create_set_Tmax_Tmin(new_matrix, criterion_types)
+            new_matrix = calculate_new_matrix(normalized_matrix, variables_df['w'])
+            st.subheader("New Matrix:")
+            st.dataframe(new_matrix)
 
-        st.subheader("Set T_i^max:")
-        st.write(set_Tmax)
-        st.subheader("Set T_i^min:")
-        st.write(set_Tmin)
+            set_Sj = create_set_Sj(new_matrix)
+            set_Smax, set_Smin = split_sets_Smax_Smin(criterion_types, set_Sj)
 
-        T_ik, T_il = calculate_T_ik_T_il(set_Tmax, set_Tmin)
+            st.subheader("Set S_j:")
+            st.dataframe(pd.DataFrame(list(set_Sj.items()), columns=["Criterion", "Value"]).T)
+            st.subheader("Set S_max:")
+            st.dataframe(pd.DataFrame(list(set_Smax.items()), columns=["Criterion", "Value"]).T)
+            st.subheader("Set S_min:")
+            st.dataframe(pd.DataFrame(list(set_Smin.items()), columns=["Criterion", "Value"]).T)
 
-        st.subheader("T_ik for each alternative:")
-        st.write(T_ik)
-        st.subheader("T_il for each alternative:")
-        st.write(T_il)
+            set_Tmax, set_Tmin = create_set_Tmax_Tmin(new_matrix, criterion_types)
+            st.subheader("Set T_i^max:")
+            st.dataframe(pd.DataFrame(list(set_Tmax.items()), columns=["Alternative", "T_max"]).T)
+            st.subheader("Set T_i^min:")
+            st.dataframe(pd.DataFrame(list(set_Tmin.items()), columns=["Alternative", "T_min"]).T)
 
-        # Calculate the optimal alternative function
-        Sk = sum(set_Smax.values())
-        st.subheader("Sk")
-        st.write(Sk)
-        Sl = sum(set_Smin.values())
-        st.subheader("Sl")
-        st.write(Sl)
-        f_opt = optimal_alternative_function(Sk, Sl)
+            T_ik, T_il = calculate_T_ik_T_il(set_Tmax, set_Tmin)
+            st.subheader("T_ik for each alternative:")
+            st.dataframe(pd.DataFrame(list(T_ik.items()), columns=["Alternative", "T_ik"]).T)
+            st.subheader("T_il for each alternative:")
+            st.dataframe(pd.DataFrame(list(T_il.items()), columns=["Alternative", "T_il"]).T)
 
-        st.subheader("Optimal Alternative Function:")
-        st.write(f"f_opt(x) = ({Sl} - {Sk}) * x + {Sk}")
+            # Calculate the optimal alternative function
+            Sk = sum(set_Smax.values())
+            Sl = sum(set_Smin.values())
+            f_opt = optimal_alternative_function(Sk, Sl)
+            st.subheader("Optimal Alternative Function:")
+            st.write(f"f_opt(x) = ({Sl} - {Sk}) * x + {Sk}")
 
+            # Calculate the alternative functions for each alternative
+            alternative_functions = {}
+            for alternative in T_ik.keys():
+                f_i = alternative_function(T_ik[alternative], T_il[alternative])
+                alternative_functions[alternative] = f_i
 
-        # Calculate the alternative functions for each alternative
-        alternative_functions = {}
-        for alternative in T_ik.keys():
-            f_i = alternative_function(T_ik[alternative], T_il[alternative])
-            alternative_functions[alternative] = f_i
+            st.subheader("Alternative Functions:")
+            for alternative, f_i in alternative_functions.items():
+                st.write(f"f_{alternative}(x) = ({T_il[alternative]} - {T_ik[alternative]}) * x + {T_ik[alternative]}")
 
-        st.subheader("Alternative Functions:")
-        for alternative, f_i in alternative_functions.items():
-            st.write(f"f_{alternative}(x) = ({T_il[alternative]} - {T_ik[alternative]}) * x + {T_ik[alternative]}")
+            # Calculate the definite integral of the Optimal Alternative Function
+            def_opt_integral = calculate_definite_integral(f_opt, 0, 1)
+            st.subheader("Definite Integral of Optimal Alternative Function:")
+            st.write(def_opt_integral)
 
-    # Calculate the definite integral of the Optimal Alternative Function
-        def_opt_integral = calculate_definite_integral(f_opt, 0, 1)
-        st.subheader("Definite Integral of Optimal Alternative Function:")
-        st.write(def_opt_integral)
+            # Calculate the definite integrals of the Alternative Functions for each alternative
+            st.subheader("Definite Integrals of Alternative Functions:")
+            def_integrals = {}  # Dictionary to store the definite integrals for each alternative
+            for alternative, f_i in alternative_functions.items():
+                def_i_integral = calculate_definite_integral(f_i, 0, 1)
+                st.write(f"Definite Integral of f_{alternative}(x):")
+                st.write(def_i_integral)
+                def_integrals[alternative] = def_i_integral
 
-        # Calculate the definite integrals of the Alternative Functions for each alternative
-        st.subheader("Definite Integrals of Alternative Functions:")
-        def_integrals = {}  # Dictionary to store the definite integrals for each alternative
-        for alternative, f_i in alternative_functions.items():
-            def_i_integral = calculate_definite_integral(f_i, 0, 1)
-            st.write(f"Definite Integral of f_{alternative}(x):")
-            st.write(def_i_integral)
-            def_integrals[alternative] = def_i_integral
+            # Calculate the differences and rank the alternatives
+            ranked_alternatives = []
+            for alternative, def_i_integral in def_integrals.items():
+                difference = def_opt_integral - def_i_integral
+                ranked_alternatives.append((alternative, difference))
 
-        # Calculate the differences and rank the alternatives
-        ranked_alternatives = sorted(def_integrals, key=lambda alternative: def_opt_integral - def_integrals[alternative])
+            ranked_alternatives = sorted(ranked_alternatives, key=lambda x: x[1])
 
-        # Display the ranking
-        st.subheader("Ranking of Alternatives:")
-        for rank, alternative in enumerate(ranked_alternatives, start=1):
-            st.write(f"Rank {rank}: Alternative {alternative}")
-        ranked_alternatives = []
-        for alternative, def_i_integral in def_integrals.items():
-            difference = def_opt_integral - def_i_integral
-            ranked_alternatives.append((alternative, difference))
+            # Display the ranking with difference values
+            st.subheader("Ranking of Alternatives:")
+            for rank, (alternative, difference) in enumerate(ranked_alternatives, start=1):
+                st.write(f"Rank {rank}: Alternative {alternative}, Difference: {difference:.4f}")
 
-        ranked_alternatives = sorted(ranked_alternatives, key=lambda x: x[1])
+            if st.button("Generate PDF"):
+                pdf_file = generate_pdf_report(payoff_matrix, normalized_matrix, variables_df, new_matrix,
+                                               set_Sj, set_Smax, set_Smin, set_Tmax, set_Tmin, T_ik, T_il,
+                                               def_opt_integral, alternative_functions, def_integrals, ranked_alternatives,
+                                               Sk, Sl)
+                st.download_button("Download PDF", data=pdf_file, file_name="mcda_report.pdf", mime="application/pdf")
+                st.success("PDF report generated successfully!")
 
-        # Display the ranking with difference values
-        st.subheader("Ranking of Alternatives:")
-        for rank, (alternative, difference) in enumerate(ranked_alternatives, start=1):
-            st.write(f"Rank {rank}: Alternative {alternative}, Difference: {difference:.4f}")
-
-        if st.button("Generate PDF"):
-            pdf_file = generate_pdf_report(payoff_matrix, normalized_matrix, variables_df, new_matrix,
-                                    set_Sj, set_Smax, set_Smin, set_Tmax, set_Tmin, T_ik, T_il,
-                                    def_opt_integral, alternative_functions, def_integrals, ranked_alternatives,
-                                    Sk, Sl)  # Pass Sk and Sl as arguments here
-            #st.success("PDF report generated successfully!")
-             # Provide the PDF for download
-            st.download_button("Download PDF", data=pdf_file, file_name="mcda_report.pdf", mime="application/pdf")
-            st.success("PDF report generated successfully!")
-    
     elif choice == "PSI":
         st.title("PSI Calculator")
 
-        payoff_matrix, criterion_types = get_payoff_matrix()
-        st.subheader("Payoff Matrix:")
-        st.dataframe(payoff_matrix)
+        # Input Method
+        data_input_method = st.selectbox("Select Data Input Method:", ["Manual Input", "Upload Excel"])
 
-        normalized_matrix = normalize_matrix(payoff_matrix, criterion_types)
-        st.subheader("Normalized Matrix:")
-        st.dataframe(normalized_matrix)
+        if data_input_method == "Upload Excel":
+            st.write("Download the template to fill out the data:")
+            download_template()
+            uploaded_file = st.file_uploader("Upload Excel File", type=["xlsx"])
 
-        PSI_variables_df = calculate_PSI_variables(normalized_matrix)
-        st.subheader("Calculated Variables:")
-        st.dataframe(PSI_variables_df)
+            if uploaded_file:
+                payoff_matrix, criterion_types, _, num_criteria = read_excel(uploaded_file)
+                st.subheader("Payoff Matrix from Uploaded Excel:")
+                st.dataframe(payoff_matrix)
 
-        # Plot the PSI weights using Plotly bar chart
-        fig = px.bar(
-            PSI_variables_df,
-            x=PSI_variables_df.index,  # Assuming your criteria have meaningful names
-            y='psi',
-            labels={'index': 'Criteria', 'psi': 'PSI Weight'},
-            title='PSI Weights for Criteria',
-        )
-        
-        # Customize the chart layout
-        fig.update_layout(
-            xaxis_title_text='Criteria',
-            yaxis_title_text='PSI Weight',
-            xaxis_tickangle=-45,
-        )
+        elif data_input_method == "Manual Input":
+            payoff_matrix, criterion_types, _, num_criteria = get_payoff_matrix()
+            st.subheader("Payoff Matrix:")
+            st.dataframe(payoff_matrix)
 
-        # Show the Plotly chart in Streamlit
-        st.plotly_chart(fig) 
+        if 'payoff_matrix' in locals():
+            normalized_matrix = normalize_matrix(payoff_matrix, criterion_types)
+            st.subheader("Normalized Matrix:")
+            st.dataframe(normalized_matrix)
+
+            PSI_variables_df = calculate_PSI_variables(normalized_matrix)
+            st.subheader("Calculated Variables:")
+            st.dataframe(PSI_variables_df)
+
+            # Plot the PSI weights using Plotly bar chart
+            fig = px.bar(
+                PSI_variables_df,
+                x=PSI_variables_df.index,  # Assuming your criteria have meaningful names
+                y='psi',
+                labels={'index': 'Criteria', 'psi': 'PSI Weight'},
+                title='PSI Weights for Criteria',
+            )
+            fig.update_layout(xaxis_title_text='Criteria', yaxis_title_text='PSI Weight', xaxis_tickangle=-45)
+            st.plotly_chart(fig)
 
     else:
         st.subheader("About")
