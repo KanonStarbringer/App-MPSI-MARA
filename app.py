@@ -337,7 +337,7 @@ def main():
             set_Sj = create_set_Sj(new_matrix)
             set_Smax, set_Smin = split_sets_Smax_Smin(criterion_types, set_Sj)
 
-            st.subheader("Set S_j:")
+            st.subheader("Set S_j (criteria weights):")
             st.dataframe(pd.DataFrame(list(set_Sj.items()), columns=["Criterion", "Value"]).T)
             st.subheader("Set S_max:")
             st.dataframe(pd.DataFrame(list(set_Smax.items()), columns=["Criterion", "Value"]).T)
