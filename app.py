@@ -55,7 +55,7 @@ def download_template():
     st.download_button(
         label="Download Excel template",
         data=excel_buffer,
-        file_name="MEREC_SPOTIS_template.xlsx",
+        file_name="MPSI_MARA_template.xlsx",
         mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
     )
 
