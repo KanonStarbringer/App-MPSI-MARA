@@ -315,6 +315,96 @@ def main():
                 st.subheader("Payoff Matrix from Uploaded Excel:")
                 st.dataframe(payoff_matrix)
 
+            # Proceed with your calculations after ensuring the data is input
+                normalized_matrix = normalize_matrix(payoff_matrix, criterion_types)
+                st.subheader("Normalized Matrix:")
+                st.dataframe(normalized_matrix)
+
+                # Further calculations for MPSI-MARA
+                variables_df = calculate_variables(normalized_matrix)
+                st.subheader("Calculated Variables:")
+                st.dataframe(variables_df)
+
+                new_matrix = calculate_new_matrix(normalized_matrix, variables_df['w'])
+                st.subheader("New Matrix:")
+                st.dataframe(new_matrix)
+
+                set_Sj = create_set_Sj(new_matrix)
+                set_Smax, set_Smin = split_sets_Smax_Smin(criterion_types, set_Sj)
+
+                st.subheader("Set S_j (criteria weights):")
+                st.dataframe(pd.DataFrame(list(set_Sj.items()), columns=["Criterion", "Value"]).T)
+                st.subheader("Set S_max:")
+                st.dataframe(pd.DataFrame(list(set_Smax.items()), columns=["Criterion", "Value"]).T)
+                st.subheader("Set S_min:")
+                st.dataframe(pd.DataFrame(list(set_Smin.items()), columns=["Criterion", "Value"]).T)
+
+                set_Tmax, set_Tmin = create_set_Tmax_Tmin(new_matrix, criterion_types)
+                st.subheader("Set T_i^max:")
+                st.dataframe(pd.DataFrame(list(set_Tmax.items()), columns=["Alternative", "T_max"]).T)
+                st.subheader("Set T_i^min:")
+                st.dataframe(pd.DataFrame(list(set_Tmin.items()), columns=["Alternative", "T_min"]).T)
+
+                T_ik, T_il = calculate_T_ik_T_il(set_Tmax, set_Tmin)
+                st.subheader("T_ik for each alternative:")
+                st.dataframe(pd.DataFrame(list(T_ik.items()), columns=["Alternative", "T_ik"]).T)
+                st.subheader("T_il for each alternative:")
+                st.dataframe(pd.DataFrame(list(T_il.items()), columns=["Alternative", "T_il"]).T)
+
+                # Calculate the optimal alternative function
+                Sk = sum(set_Smax.values())
+                Sl = sum(set_Smin.values())
+                f_opt = optimal_alternative_function(Sk, Sl)
+                st.subheader("Optimal Alternative Function:")
+                st.write(f"f_opt(x) = ({Sl} - {Sk}) * x + {Sk}")
+
+                # Calculate the alternative functions for each alternative
+                alternative_functions = {}
+                for alternative in T_ik.keys():
+                    f_i = alternative_function(T_ik[alternative], T_il[alternative])
+                    alternative_functions[alternative] = f_i
+
+                st.subheader("Alternative Functions:")
+                for alternative, f_i in alternative_functions.items():
+                    st.write(f"f_{alternative}(x) = ({T_il[alternative]} - {T_ik[alternative]}) * x + {T_ik[alternative]}")
+
+                # Calculate the definite integral of the Optimal Alternative Function
+                def_opt_integral = calculate_definite_integral(f_opt, 0, 1)
+                st.subheader("Definite Integral of Optimal Alternative Function:")
+                st.write(def_opt_integral)
+
+                # Calculate the definite integrals of the Alternative Functions for each alternative
+                st.subheader("Definite Integrals of Alternative Functions:")
+                def_integrals = {}  # Dictionary to store the definite integrals for each alternative
+                for alternative, f_i in alternative_functions.items():
+                    def_i_integral = calculate_definite_integral(f_i, 0, 1)
+                    st.write(f"Definite Integral of f_{alternative}(x):")
+                    st.write(def_i_integral)
+                    def_integrals[alternative] = def_i_integral
+
+                # Calculate the differences and rank the alternatives
+                ranked_alternatives = []
+                for alternative, def_i_integral in def_integrals.items():
+                    difference = def_opt_integral - def_i_integral
+                    ranked_alternatives.append((alternative, difference))
+
+                ranked_alternatives = sorted(ranked_alternatives, key=lambda x: x[1])
+
+                # Display the ranking with difference values
+                st.subheader("Ranking of Alternatives:")
+                for rank, (alternative, difference) in enumerate(ranked_alternatives, start=1):
+                    st.write(f"Rank {rank}: Alternative {alternative}, Difference: {difference:.4f}")
+
+                if st.button("Generate PDF"):
+                    pdf_file = generate_pdf_report(payoff_matrix, normalized_matrix, variables_df, new_matrix,
+                                                   set_Sj, set_Smax, set_Smin, set_Tmax, set_Tmin, T_ik, T_il,
+                                                   def_opt_integral, alternative_functions, def_integrals, ranked_alternatives,
+                                                   Sk, Sl)
+                    st.download_button("Download PDF", data=pdf_file, file_name="mcda_report.pdf", mime="application/pdf")
+                    st.success("PDF report generated successfully!")
+            else:
+                st.warning("Please fill out all fields in the payoff matrix before proceeding.")
+
         elif data_input_method == "Manual Input":
             payoff_matrix, criterion_types = get_payoff_matrix()
 
